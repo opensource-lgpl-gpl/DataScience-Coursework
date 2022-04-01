@@ -1,0 +1,250 @@
+---
+title: "Module 8 Logistic Regression"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+## What is logistic regression?
+
+Predicting categorical outcomes Predictors can be either categorical or continuous Predict the likelihood of a tumor being cancerous, being pregnant, an email being spam, graduating or not
+
+Binary outcomes -- predicted values will lie between 0 and 1. This type of logistic regression is also called binary logistic regression. When you want to predict something with \>2 categories, its called multinomial logistic regression. Use following syntax for binary logistic regression:
+
+Model \<- glm(Y\~x, binomial(), data) Y is your binary outcome variable. X is your predictor. Data is your data frame.
+
+```{r}
+
+data(abalone)
+ab2 <- abalone %>%
+  filter(Type == 'M' | Type == "F")
+
+```
+
+model is the name of your model object. Y is your binary outcome variable. X is your predictor
+
+```{r}
+mod1 <- glm(Type ~ Diameter, binomial(), ab2)
+summary(mod1)
+```
+
+What can we tell form this? - Our predictor is significant. In logistic regression, categorical predictors and continuous outcomes are used. False.
+
+The three related things you will need to know how to go between - probability, odds, log odds. Because out outcome is not continuous, instead of predicting values we predict the probability of being in either group. For one variable, the binary logistic regression equation is P(Y)=1/(1+e\^-{b0+b11x1i}) P(Y) = probability of Y occurring. e is the base of natural logarithms The bracketed portion of the denominator is the same as the linear regression equation. For more than one predictor: P(Y)=1/(1+e\^-{b0+b1 x1i+b2 x2i+...bn xni}) The interpretation of the model is the same as in single-predictor logistic. \#\# The key We calculate the odds of something occurring as odds = (p)/(1-p). Instead of odds alone, we want our function to produce values between zero and one. So we take the natural log of the odds - the logit. Logit(p)=log(p/(1-p)) That gives us values of x between 0 and 1 and y of any value. We want one that takes any x value that will predict a y value between 0 and 1. So we take the inverse. logit\^-1 (a) = 1/(1+e\^-a)
+
+## Interpretation
+
+The key to logistic regression is transforming our odds ratio into a probability, then to logit. - False The coefficients are necessary but are not sufficient for intepreting the regression. Instead the odds ratio is where we'll turn. Let's start with a model with no predictors.
+
+```{r}
+mod0 <- glm(Type ~1, binomial(), ab2)
+summary(mod0)
+```
+
+Remember, p is the probability of being "success" or 1.
+
+```{r}
+table(ab2$Type)
+```
+
+The odds of being male are:
+
+```{r}
+1528/(1307+1528)
+```
+
+To calculate the odds. Estimate is the log odds. .539/(1.539)=.539/.461=1.169 log(p/(1-p))=log(1.169)=0.15623
+
+In sum, we can obtain the coefficient with no predictor by: Finding the probability of being a 1 - Frequency of 1/total N Calculating the odds. - Probability/(1-probability) Calculating the log-odds - log(odds) This means in a model with no predictors, the intercept is the log odds of being "success" - group 1 (male).
+
+## Assessing the model.
+
+In regression we compared our observed and predicted values. log-likehood This is conceptually analogous to residual sum of squares. The larger the log-likelihood, the worse the fit.
+
+## Deviance
+
+We also need to look at deviance. deviance = -2 x log - likelihood = -2LL This we've seen
+
+```{r}
+mod1 <- glm(Type ~ Diameter, binomial(), ab2)
+summary(mod1)
+```
+
+```{r}
+attributes(mod1)
+```
+
+We need to access the deviance scores. The baseline model uses only the constant. And the log-likelihood follows a chi-square distribution. So now we can compare our null and model deviance scores, along with their respective dfs, and compute the chi-square statistic.
+
+```{r}
+mod1.chi <- mod1$null.deviance - mod1$deviance
+mod1.df <- mod1$df.null - mod1$df.residual
+cat("p-value = ", 1 - pchisq(mod1.chi, mod1.df))
+
+```
+
+```{r}
+cat("Chi-square difference = ", mod1.chi)
+```
+
+If this value is significant, we believe our new model fits better than the null model In this case, it seems very apparent this is true. To interpret deviance correctly, we compute a chi-square statistic.
+
+## AIC
+
+In multiple regression, we saw the AIC as a useful statistic for model fit. We see it here again, albeit in a different form.
+
+AIC = -2LL + 2k. Using AIC we can compare multiple models, but as we increase the number of predictors the AIC, k penalty will increase.
+
+```{r}
+mod2 <- glm(Type ~ Diameter + Rings, binomial(), ab2)
+summary(mod2)
+mod1$aic
+mod2$aic
+```
+
+Little difference between the two, despite the addition of the significant predictor due to penalty for said predictor. Therefore, AIC penalizes models for an increase in number of predictors.
+
+## z-values
+
+We're interested in overall model fit, but also the fit of individual predictors. In multiple regression, teh fit of each was calculated using the coefficient and standard errors to obtain a t-statistic. z-statistic z=b/SEb This z-statistic is normally distributed and we can caculate its significance its significance like we saw earlier this semester. We can obtain a table of our coefficients.
+
+```{r}
+sum.mod1 <- summary(mod1)
+sum.mod1$coefficients
+```
+
+And access the appropriate information by indexing.
+
+```{r}
+sum.mod1$coefficients[,1]
+sum.mod1$coefficients[,1][2]
+sum.mod1$coefficients[,2]
+sum.mod1$coefficients[,2][2]
+sum.mod1$coefficients[,1][2] / sum.mod1$coefficients[,2][2]
+```
+
+## What about R\^2?
+
+There 's no direct R\^2 comparison for logistic regression.
+
+## Another example
+
+```{r}
+library(caret)
+data(GermanCredit)
+gc2 <- GermanCredit %>% 
+  select(Class, Age, Amount, ForeignWorker)
+glimpse(gc2)
+table(gc2$Class)
+contrasts(gc2$Class)
+```
+
+We now know p=0.7 and good credit is labeled 1.
+
+## No predictor logistic
+
+```{r}
+mod0 <- glm(Class ~ 1, binomial(), data = gc2)
+summary(mod0)
+```
+
+Let's calculate the odds odds = p/(1-p) = .7/(1-.7) = .7/.3=2.33 The log odds of the value is log(2.33) = 0.847, the value of our coefficient. Coefficients are the log odds of the probability of having good credit.
+
+## logistic regression with one binary predictor
+
+```{r}
+table(gc2$ForeignWorker)
+```
+
+The vast majority of people were German
+
+```{r}
+levels(gc2$ForeignWorker) <- c('Yes','No')
+modFor <- glm(Class ~ ForeignWorker, binomial, data = gc2)
+sum.modFor <- (summary(modFor))
+sum.modFor
+```
+
+## Intercept interpretation
+
+The intercept is the log odds of having good credit given ForeignWorker = 0. To find the odds ratio, we exponentiate the intercept coefficient.
+
+```{r}
+expFor <- exp(sum.modFor$coefficients[,1][1])
+expFor
+```
+
+To find the probability from an odds ratio, we use the following equation.
+
+p = odds/(1+odds)
+
+```{r}
+expFor/(expFor+1)
+```
+
+The probability of having good credit when being a foreign worker is ... 90%. Does that make sense?
+
+```{r}
+table(gc2$Class, gc2$ForeignWorker)
+```
+
+Given 33/37 = 0.891891, that makes sense
+
+## Binary predictor interpretation
+
+The regression coefficient represents the increase in log odds of having good credit with a one-unit increase in ForeignWorker.
+
+```{r}
+sum.modFor$coefficients
+
+```
+
+Given it is negative, we know this will decrease the odds of having good credit. Let's determine the probability of having good credit given they're foreign workers (x1=0) with our equation. P(GoodCredit)= 1/(1+e^-{b0+b1x1})=1/(1+e^-{2.11+-1.3\*0}) = 0.8918
+
+We've seen this before! The probability of not having good credit given you're foreign is 1-0.891 = 0.108 4/37 = 0.108 We can again go backwards from here. The odds are 0.891/0.108 = 8.25. And the logs odds are log(8.25) = 2.11, the value of our coefficient This should all make sense! Now we'll find the probability of good credit for a one-unit increase in ForeignWorker - being a non-foreign worker - using x1=1. P(GoodCredit)= 1/(1+e^-{b0+b1x1})=1/(1+e^-{2.11+-1.3\*1}) = 0.693
+
+```{r}
+table(gc2$Class, gc2$ForeignWorker)
+```
+
+667/(296+667) = 0.693 The probability of not having good credit given you're not foreign is 1-0.693 = 0.307. 296/963 = 0.307 - again makes sense And the odds of having good credit given not being foreign are 0.693/0.307=2.25.
+
+## Now lets see the change in odds.
+
+We divide the odds after a one-unit change by the original odds. 2.25/8.25 = 0.273 Now let's see what happens when we take the log of that. log(0.273) = -1.297783
+
+This is how we know the coefficient for our predictor represents a one-unit increase in the log odds of being a 1 (good credit)
+
+This means when we go from being a foreign worker to not, we decrease the odds of having good credit by \~73%.
+
+## Continuous Predictors
+
+```{r}
+
+gc2 %>%
+  group_by(Class) %>%
+  summarise("Mean age" = mean(Age))
+
+```
+
+```{r}
+modAge <- glm(Class ~ Age, binomial(), data = gc2)
+sum.modAge <- summary(modAge)
+sum.modAge
+
+```
+
+This means our logistic regression equation is:
+
+P(GoodCredit)= 1/(1+e^-{b0+b1x1})=1/(1+e^-{0.200919+0.018440\*Age})
+
+So for a one-unit increase in age, the log odds incrase by 0.018. Let's run through our functions. Let's see what happens for someone with age = 0, the easiest place to start p=1/(1+e\^-{0.200919+0.018440\*0}) = 0.5500615
+
+So the odds of having good credit for someone age zero are 0.55/0.45 = 1.222
+
+let's see a one unit change in age. p=1/(1+e\^-{0.200919+0.018440\*1}) = 0.5536209
+
+So the odds of having good credit for someone age one are 0.5546/0.4453 = 1.245 Therefore the change in odds is 1.245/1.222 = 1.0186. And the change in log odds = log(1.0186) = 0.01844 - our coefficient!
+
+So again, a one-unit increase in x1 corresponds to a b1 change in the log odds. So how do we do this? 1. Run the regression. 2. Plug coefficient in our logistic regression equation. 3. Calculate probability for x1=0. 4. Calculate odds for x1=0. 5. Calculate probability for x1=1. 6. Calculate odds for x1=1. 7. Calculate the change in odds. 8. Calculate the log of that change. - This will be equal to our coefficient.
